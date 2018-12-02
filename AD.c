@@ -7,21 +7,61 @@ MODULE_AUTHOR("Cleisson Fernandes");
 MODULE_DESCRIPTION("Device Driver AD");
 MODULE_LICENSE("GPL v2");
 
+#define SCALE 4822 // in uV/raw
+
 struct AD_data {
 	struct i2c_client *client;
 	struct mutex lock;
-	const struct AD_info *info;
-};
-
+	int scale;
+	const struct AD_informations *informations;
+}; 
 
 static int AD_read_raw(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *chan,
 			int * val, int * val2, long mask)
 {
-	*val = 1;
-	*val2 = 2;
+	int ret;
+	struct AD_data *data = iio_priv(indio_dev);
+	int raw = 0;
+	char buffer[4];
+
+	switch (mask) {
+		case IIO_CHAN_INFO_RAW:
+			switch (chan->channel) {
+				case 0:
+					ret = i2c_master_recv(data->client, buffer, sizeof(buffer));
+					if (ret < 0)
+						return ret;
+					
+					raw = buffer[0];
+					raw = (raw << 8) | buffer[1];
+					*val = raw;
+				break;
+
+				case 1:
+					ret = i2c_master_recv(data->client, buffer, sizeof(buffer));
+					if (ret < 0)
+						return ret;
+					
+					raw = buffer[2];
+					raw = (raw << 8) | buffer[3];
+					*val = raw;
+				break;
+
+			}
+		break;
+
+		case IIO_CHAN_INFO_SCALE:
+
+		*val = (data->scale)/1000;
+		*val2 = ((data->scale)%1000)*1000;
+		return IIO_VAL_INT_PLUS_MICRO;
+
+		break;
+	}
+
 	printk(KERN_INFO "AD_read_raw\n");
-	return 1;
+	return IIO_VAL_INT;
 };
 
 static int AD_write_raw(struct iio_dev *indio_dev,
@@ -37,13 +77,13 @@ static const struct iio_chan_spec AD_channels[] = {
 	    .type = IIO_VOLTAGE,
 	    .indexed = 1,         
 	    .channel = 0,
-	    .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+	    .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE)
 	},
 	{
 	    .type = IIO_VOLTAGE,
 	    .indexed = 1,         
 	    .channel = 1,
-	    .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+	    .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE)
 	},
 };
 
@@ -68,6 +108,7 @@ static int AD_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
+	data->scale = SCALE;
 
 	mutex_init(&data->lock);
 	indio_dev->dev.parent = &client->dev;
@@ -82,10 +123,11 @@ static int AD_probe(struct i2c_client *client,
 
 static int AD_remove(struct i2c_client *client)
 {
+	struct iio_dev *indio_dev;
+
 	printk(KERN_INFO "AD_remove\n");
 
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct bh1750_data *data = iio_priv(indio_dev);
+	indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
 
