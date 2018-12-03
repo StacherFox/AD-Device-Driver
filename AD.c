@@ -11,7 +11,6 @@ MODULE_LICENSE("GPL v2");
 
 struct AD_data {
 	struct i2c_client *client;
-	struct mutex lock;
 	int scale;
 	const struct AD_informations *informations;
 }; 
@@ -110,7 +109,6 @@ static int AD_probe(struct i2c_client *client,
 	data->client = client;
 	data->scale = SCALE;
 
-	mutex_init(&data->lock);
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &AD_info;
 	indio_dev->name = id->name;
