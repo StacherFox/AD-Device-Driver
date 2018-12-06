@@ -5,7 +5,7 @@ AD-Device-Driver é uma implementação de um device driver do tipo IIO para lei
 
 O conversor AD foi emulado por um Arduino Uno.
 
- ![scheme](C:\Users\Cleissom\Desktop\Arquivos de aula\LXE\AD-Device-Driver\img\scheme.jpg)
+ ![scheme](/img/scheme.jpg)
 
 
 
